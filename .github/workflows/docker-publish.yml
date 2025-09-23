@@ -14,6 +14,9 @@ permissions:
   packages: write
   security-events: write
 
+env:
+  PGBOUNCER_VERSION: 1.24.0
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -39,9 +42,7 @@ jobs:
         with:
           images: ghcr.io/starttoaster/pgbouncer
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=raw,value=${{ env.PGBOUNCER_VERSION }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -52,6 +53,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            PGBOUNCER_VERSION=${{ env.PGBOUNCER_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
