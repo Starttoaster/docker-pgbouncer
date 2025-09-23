@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d myapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgbouncer:
+    image: ghcr.io/starttoaster/pgbouncer:latest
+    environment:
+      # Database connection settings
+      PGBOUNCER_DB_HOST: postgres
+      PGBOUNCER_DB_PORT: 5432
+      PGBOUNCER_DB_NAME: myapp
+      PGBOUNCER_DB_USER: myuser
+      PGBOUNCER_DB_PASSWORD: mypassword
+      
+      # PgBouncer configuration
+      PGBOUNCER_LISTEN_ADDR: 0.0.0.0
+      PGBOUNCER_LISTEN_PORT: 6432
+      PGBOUNCER_POOL_MODE: session
+      PGBOUNCER_MAX_CLIENT_CONN: 100
+      PGBOUNCER_DEFAULT_POOL_SIZE: 20
+      PGBOUNCER_MIN_POOL_SIZE: 5
+      PGBOUNCER_RESERVE_POOL_SIZE: 5
+      PGBOUNCER_RESERVE_POOL_TIMEOUT: 5
+      
+      # Authentication
+      PGBOUNCER_AUTH_TYPE: md5
+      
+      # Logging
+      PGBOUNCER_LOG_CONNECTIONS: 1
+      PGBOUNCER_LOG_DISCONNECTIONS: 1
+      PGBOUNCER_LOG_POOLER_ERRORS: 1
+      
+      # Timeouts
+      PGBOUNCER_SERVER_LIFETIME: 3600
+      PGBOUNCER_SERVER_IDLE_TIMEOUT: 600
+      PGBOUNCER_QUERY_TIMEOUT: 0
+      PGBOUNCER_CLIENT_IDLE_TIMEOUT: 0
+      
+      # Admin users
+      PGBOUNCER_ADMIN_USERS: admin
+      PGBOUNCER_STATS_USERS: stats
+    ports:
+      - "6432:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  app:
+    image: alpine/psql:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep 99999999"]
+    environment:
+      PSQL_CONNECTION_STRING: postgresql://myuser:mypassword@pgbouncer:6432/myapp
+      PGHOST: pgbouncer
+      PGPORT: 6432
+      PGUSER: myuser
+      PGPASSWORD: mypassword
+      PGDATABASE: myapp
+    depends_on:
+      pgbouncer:
+        condition: service_started
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

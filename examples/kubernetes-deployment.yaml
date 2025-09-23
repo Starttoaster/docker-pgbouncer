@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  labels:
+    app: pgbouncer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      containers:
+      - name: pgbouncer
+        image: ghcr.io/starttoaster/pgbouncer:latest
+        ports:
+        - containerPort: 6432
+        env:
+        # Database connection settings
+        - name: PGBOUNCER_DB_HOST
+          value: "postgres-service"
+        - name: PGBOUNCER_DB_PORT
+          value: "5432"
+        - name: PGBOUNCER_DB_NAME
+          value: "myapp"
+        - name: PGBOUNCER_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: PGBOUNCER_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        
+        # PgBouncer configuration
+        - name: PGBOUNCER_LISTEN_ADDR
+          value: "0.0.0.0"
+        - name: PGBOUNCER_LISTEN_PORT
+          value: "6432"
+        - name: PGBOUNCER_POOL_MODE
+          value: "session"
+        - name: PGBOUNCER_MAX_CLIENT_CONN
+          value: "100"
+        - name: PGBOUNCER_DEFAULT_POOL_SIZE
+          value: "20"
+        
+        # Authentication
+        - name: PGBOUNCER_AUTH_TYPE
+          value: "md5"
+        
+        # Logging
+        - name: PGBOUNCER_LOG_CONNECTIONS
+          value: "1"
+        - name: PGBOUNCER_LOG_DISCONNECTIONS
+          value: "1"
+        - name: PGBOUNCER_LOG_POOLER_ERRORS
+          value: "1"
+        
+        # Timeouts
+        - name: PGBOUNCER_SERVER_LIFETIME
+          value: "3600"
+        - name: PGBOUNCER_SERVER_IDLE_TIMEOUT
+          value: "600"
+        - name: PGBOUNCER_QUERY_TIMEOUT
+          value: "0"
+        - name: PGBOUNCER_CLIENT_IDLE_TIMEOUT
+          value: "0"
+
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -p
+            - "6432"
+            - -U
+            - pgbouncer
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -p
+            - "6432"
+            - -U
+            - pgbouncer
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-service
+spec:
+  selector:
+    app: pgbouncer
+  ports:
+  - protocol: TCP
+    port: 6432
+    targetPort: 6432
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+type: Opaque
+data:
+  username: bXl1c2Vy  # base64 encoded 'myuser'
+  password: bXlwYXNzd29yZA==  # base64 encoded 'mypassword'
