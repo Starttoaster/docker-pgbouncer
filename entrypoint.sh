@@ -61,6 +61,9 @@ EOF
 # Generate userlist.txt if PGBOUNCER_USERLIST is provided
 if [ -n "${PGBOUNCER_USERLIST:-}" ]; then
     echo "${PGBOUNCER_USERLIST}" > /etc/pgbouncer/userlist.txt
+elif [ "${PGBOUNCER_AUTH_TYPE:-md5}" = "trust" ] && [ -n "${PGBOUNCER_DB_USER:-}" ]; then
+    # Generate userlist with just username for trust auth
+    echo "\"${PGBOUNCER_DB_USER}\" \"\"" > /etc/pgbouncer/userlist.txt
 elif [ -n "${PGBOUNCER_DB_USER:-}" ] && [ -n "${PGBOUNCER_DB_PASSWORD:-}" ]; then
     # Generate userlist from database credentials
     echo "\"${PGBOUNCER_DB_USER}\" \"md5$(echo -n "${PGBOUNCER_DB_PASSWORD}${PGBOUNCER_DB_USER}" | md5sum | cut -d' ' -f1)\"" > /etc/pgbouncer/userlist.txt
