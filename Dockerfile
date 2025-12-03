@@ -1,8 +1,9 @@
 # The latest version of pgbouncer is determined by what's in Alpine's package repositories.
 # When updating either Alpine or PgBouncer, check the versions available here: https://pkgs.alpinelinux.org/packages?name=pgbouncer&branch=v3.22&repo=&arch=x86_64&origin=&flagged=&maintainer=
-FROM alpine:3.22
-ARG PGBOUNCER_VERSION=1.24.0
+ARG ALPINE_VERSION
+FROM alpine:${ALPINE_VERSION}
 
+ARG PGBOUNCER_VERSION
 RUN apk add --no-cache \
     pgbouncer=${PGBOUNCER_VERSION}-r0 \
     tini \
